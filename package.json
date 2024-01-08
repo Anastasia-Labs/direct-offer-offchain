@@ -1,5 +1,5 @@
 {
-  "name": "@anastasia-labs/linear-vesting-offchain",
+  "name": "@anastasia-labs/direct-offer-offchain",
   "version": "0.0.10",
   "description": "https://docs.github.com/en/packages/quickstart",
   "main": "./dist/index.js",
