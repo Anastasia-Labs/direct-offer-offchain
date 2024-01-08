@@ -8,7 +8,8 @@ import {
   getAddressDetails,
   Lucid,
   SpendingValidator,
-} from "@anastasia-labs/lucid-cardano-fork"
+  UTxO,
+  addAssets} from "@anastasia-labs/lucid-cardano-fork"
 import { AddressD, Value } from "../contract.types.js";
 import { Either, ReadableUTxO, Result } from "../types.js";
 
@@ -247,4 +248,113 @@ export function toAssets(value: Value): Assets {
       }
   }
   return result;
+}
+
+/**
+ * Returns a list of UTxOs whose total assets are equal to or greater than the asset value provided
+ * @param utxos list of available utxos 
+ * @param minAssets minimum total assets required
+ */
+export function selectUtxos(utxos: UTxO[], minAssets: Assets): Result<UTxO[]> {
+  const selectedUtxos: UTxO[] = [];
+  let isSelected = false;
+  const assetsRequired = new Map<string, bigint>(Object.entries(minAssets));
+
+  for (const utxo of utxos) {
+    if (utxo.scriptRef) { // not selecting utxos with scriptRef
+      continue;
+    }
+
+    isSelected = false;
+
+    for (const [unit, value] of assetsRequired) {
+      if (Object.hasOwn(utxo.assets, unit)) {
+        const utxoValue = utxo.assets[unit];
+
+        if (utxoValue >= value) {
+          assetsRequired.delete(unit);
+        } else {
+          assetsRequired.set(unit, value - utxoValue);
+        }
+
+        isSelected = true;
+      }
+    }
+
+    if (isSelected) {
+      selectedUtxos.push(utxo);
+    }
+    if (assetsRequired.size == 0) {
+      break;
+    }
+  }
+
+  if (selectedUtxos.length == 0) {
+    return { type : "error", error : new Error("Available UTxOs insufficient for required assets") }
+  }
+
+  return { type: "ok", data : selectedUtxos };
+}
+
+export function getInputUtxoIndices(indexInputs: UTxO[], remainingInputs: UTxO[]) : bigint[] {
+  const allInputs = indexInputs.concat(remainingInputs);
+
+  const sortedInputs = sortByOutRefWithIndex(allInputs);
+  const indicesMap = new Map<string, bigint>();
+  
+  sortedInputs.forEach((value, index) =>{
+    indicesMap.set(value.txHash + value.outputIndex, BigInt(index));
+  })
+
+  return indexInputs.map((value) => {
+    return indicesMap.get(value.txHash + value.outputIndex)!
+  });
+}
+
+export function sortByOutRefWithIndex(utxos: UTxO[]): UTxO[] {
+
+  return utxos
+    .sort((a, b) => {
+      if (a.txHash < b.txHash) {
+        return -1;
+
+      } else if (a.txHash > b.txHash) {
+        return 1;
+
+      } else if (a.txHash == b.txHash) {
+        if (a.outputIndex < b.outputIndex) {
+          return -1;
+        } 
+        else return 1;
+
+      } else return 0;
+    });
+};
+
+export function sumUtxoAssets(utxos: UTxO[]): Assets {
+  return utxos
+    .map((utxo) => utxo.assets)
+    .reduce((acc, assets) => addAssets(acc, assets), {});
+}
+
+/** Remove the intersection of a & b asset quantities from a
+ * @param a assets to be removed from
+ * @param b assets to remove
+ * For e.g. 
+ * a = {[x : 5n], [y : 10n]} 
+ * b = {[x : 3n], [y : 15n], [z : 4n]}
+ * remove(a, b) = {[x : 2n]}
+ */  
+export function remove(a: Assets, b: Assets): Assets {
+  
+  for(const [key, value] of Object.entries(b)) {
+    if(Object.hasOwn(a, key)){
+      if(a[key] < value)
+        delete a[key]
+      else
+       a[key] -= value;
+    }
+  }
+
+  return a;
 }
