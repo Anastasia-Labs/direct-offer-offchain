@@ -1,4 +1,4 @@
-import { Address, Assets, OutRef, UTxO } from "@anastasia-labs/lucid-cardano-fork"
+import { Address, Assets, OutRef, Script, UTxO } from "@anastasia-labs/lucid-cardano-fork"
 import { Value } from "./contract.types.js";
 
 export type CborHex = string;
@@ -39,6 +39,53 @@ export type CollectPartialConfig = {
   };
   currentTime?: POSIXTime;
 };
+
+export type FetchOfferConfig = {
+  scripts : {
+    spending: CborHex;
+    staking: CborHex;
+  }
+}
+
+export type FetchUserOfferConfig = {
+  creator : Address;
+  scripts : {
+    spending: CborHex;
+    staking: CborHex;
+  }
+}
+
+export type MakeOfferConfig = {
+  offer : Assets;
+  toBuy : Assets;
+  scripts : {
+    spending: CborHex;
+    staking: CborHex;
+  }
+}
+
+export type CancelOfferConfig = {
+  offerOutRef : OutRef;
+  scripts : {
+    spending: CborHex;
+    staking: CborHex;
+  }
+}
+
+export type AcceptOfferConfig = {
+  offerOutRef : OutRef;
+  scripts : {
+    spending: CborHex;
+    staking: CborHex;
+  }
+}
+
+export type OfferValidators = {
+  directOfferVal : Script;
+  directOfferValAddress : Address;
+  stakingVal : Script;
+  rewardAddress: Address;
+}
 
 export type ReadableUTxO<T> = {
   outRef: OutRef;
