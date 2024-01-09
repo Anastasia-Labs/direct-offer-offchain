@@ -21,6 +21,9 @@ export const makeOffer = async (
   }
 
   const directDatum =  Data.to<OfferDatum>(currOffer, OfferDatum)
+  // add 2 ADA protocol fee and 2 ADA minADA deposit fee
+  // protocol fee gets paid if the offer is accepted otherwise its returned.
+  config.offer["lovelace"] = (config.offer["lovelace"] || 0n) + 4_000_000n;
 
   try {
     const tx = await lucid.newTx()

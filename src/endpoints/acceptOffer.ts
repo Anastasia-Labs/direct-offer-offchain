@@ -10,6 +10,7 @@ import {
 import { parseSafeDatum, toAddress, toAssets, selectUtxos, getInputUtxoIndices, sumUtxoAssets, remove, getOfferValidators } from "../core/utils/index.js";
 import { Result, AcceptOfferConfig } from "../core/types.js";
 import { OfferDatum } from "../core/contract.types.js";
+import { PROTOCOL_PAYMENT_KEY, PROTOCOL_STAKE_KEY } from "../index.js";
 
 export const acceptOffer = async (
   lucid: Lucid,
@@ -38,13 +39,17 @@ export const acceptOffer = async (
     return { type: "error", error: new Error("Signer not authorized to spend UTxO.") };
 
   const toBuy = toAssets(datum.value.toBuy);
+  // add min ADA deposit cost which is refunded later
+  toBuy["lovelace"] = (toBuy["lovelace"] || 0n) + 2_000_000n;
+  
   const walletUTxOs = await lucid.wallet.getUtxos();
 
   // initialize with clone of toBuy
   const requiredAssets: Assets = { ...toBuy } 
-  // adding 4 ADA to cover minADA costs and tx fees as we will do the coin selection
-  // using more than sufficient ADA to safeguard against large minADA costs
-  requiredAssets["lovelace"] += 4_000_000n;
+  // adding 4 ADA to cover minADA costs (for assets returned to buyer) and tx fees 
+  // as we will do the coin selection. 
+  // Using more than sufficient ADA to safeguard against large minADA costs
+  requiredAssets["lovelace"] = (requiredAssets["lovelace"] || 0n) + 4_000_000n;
 
   const selectedUtxos = selectUtxos(walletUTxOs, requiredAssets);
   if(selectedUtxos.type == "error")
@@ -68,6 +73,13 @@ export const acceptOffer = async (
       .payToAddress(toAddress(datum.value.creator, lucid), toBuy)
       .payToAddress(ownAddress, addAssets(offerUTxO.assets, balanceAssets))                 
       .withdraw(validators.rewardAddress, 0n, PGlobalRedeemer)
+      .payToAddress(
+        lucid.utils.credentialToAddress(
+          lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
+          lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
+        ),
+        { ["lovelace"]: 4_000_000n } // protocol fees of 4 ADA (creator and buyer pay 2 ADA each)
+      )
       .attachSpendingValidator(validators.directOfferVal)
       .attachWithdrawalValidator(validators.stakingVal)
       .complete();
