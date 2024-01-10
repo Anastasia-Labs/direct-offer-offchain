@@ -306,8 +306,12 @@ export function getInputUtxoIndices(indexInputs: UTxO[], remainingInputs: UTxO[]
     indicesMap.set(value.txHash + value.outputIndex, BigInt(index));
   })
 
-  return indexInputs.map((value) => {
-    return indicesMap.get(value.txHash + value.outputIndex)!
+  return indexInputs.flatMap((value) => {
+    const index = indicesMap.get(value.txHash + value.outputIndex);
+    if(index)
+      return index
+    else
+      return []
   });
 }
 
@@ -341,9 +345,9 @@ export function sumUtxoAssets(utxos: UTxO[]): Assets {
  * @param a assets to be removed from
  * @param b assets to remove
  * For e.g. 
- * a = {[x : 5n], [y : 10n]} 
- * b = {[x : 3n], [y : 15n], [z : 4n]}
- * remove(a, b) = {[x : 2n]}
+ * a = {[x] : 5n, [y] : 10n} 
+ * b = {[x] : 3n, [y] : 15n, [z] : 4n}
+ * remove(a, b) = {[x] : 2n}
  */  
 export function remove(a: Assets, b: Assets): Assets {
   
@@ -351,8 +355,10 @@ export function remove(a: Assets, b: Assets): Assets {
     if(Object.hasOwn(a, key)){
       if(a[key] < value)
         delete a[key]
+      else if(a[key] > value)
+        a[key] -= value;
       else
-       a[key] -= value;
+        delete a[key];
     }
   }
 

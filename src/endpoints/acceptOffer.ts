@@ -35,7 +35,7 @@ export const acceptOffer = async (
 
   const correctUTxO = "PublicKeyCredential" in datum.value.creator.paymentCredential 
     && (datum.value.creator.paymentCredential.PublicKeyCredential[0] == ownHash)
-  if (!correctUTxO) 
+  if (correctUTxO) 
     return { type: "error", error: new Error("Signer not authorized to spend UTxO.") };
 
   const toBuy = toAssets(datum.value.toBuy);
@@ -82,7 +82,7 @@ export const acceptOffer = async (
       )
       .attachSpendingValidator(validators.directOfferVal)
       .attachWithdrawalValidator(validators.stakingVal)
-      .complete();
+      .complete({coinSelection: false});
 
     return { type: "ok", data: tx };  
   } catch (error) {
