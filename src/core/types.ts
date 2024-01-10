@@ -18,28 +18,6 @@ export type AssetClass = {
   tokenName: string;
 };
 
-export type LockTokensConfig = {
-  beneficiary: Address;
-  vestingAsset: AssetClass;
-  totalVestingQty: number;
-  vestingPeriodStart: POSIXTime;
-  vestingPeriodEnd: POSIXTime;
-  firstUnlockPossibleAfter: POSIXTime;
-  totalInstallments: number;
-  vestingMemo: string;
-  scripts: {
-    vesting: CborHex;
-  };
-};
-
-export type CollectPartialConfig = {
-  vestingOutRef: OutRef;
-  scripts: {
-    vesting: CborHex;
-  };
-  currentTime?: POSIXTime;
-};
-
 export type FetchOfferConfig = {
   scripts : {
     spending: CborHex;
