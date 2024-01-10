@@ -9,10 +9,10 @@ import {
   CancelOfferConfig,
   Lucid,
   toUnit,
-} from "@anastasia-labs/direct-offer-offchain"
+} from "../src/index.js";
 import { beforeEach, expect, test } from "vitest";
-import spendingValidator from "./directOfferSpending.json";
-import stakingValidator from "./directOfferStaking.json";
+import spendingValidator from "./directOfferSpending.json" assert { type : "json" };
+import stakingValidator from "./directOfferStaking.json" assert { type : "json" };
 
 type LucidContext = {
   lucid: Lucid;
@@ -85,9 +85,9 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
 
   const userOffers1 = await userOfferUTxOs(lucid, userOfferConfig);
 
-  console.log("Offer 1");
-  console.log("creator1 Offers", userOffers1);
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("Offer 1");
+  // console.log("creator1 Offers", userOffers1);
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
 
   const cancelOfferConfig: CancelOfferConfig = {
     offerOutRef: userOffers1[0].outRef,
@@ -102,8 +102,8 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
 
   if (invalidCancelOffer.type == "ok") return;
 
-  console.log("Invalid Cancel Offer 1");
-  console.log(`Failed. Response: ${invalidCancelOffer.error}`);
+  // console.log("Invalid Cancel Offer 1");
+  // console.log(`Failed. Response: ${invalidCancelOffer.error}`);
 
   // NOTE: Valid Cancel Offer 1
   lucid.selectWalletFromSeed(users.creator1.seedPhrase);
@@ -121,7 +121,7 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
   emulator.awaitBlock(100);
   
   const userOffers2 = await userOfferUTxOs(lucid, userOfferConfig);
-  console.log("Valid Cancel Offer 1");
-  console.log("creator1 Offers", userOffers2);
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("Valid Cancel Offer 1");
+  // console.log("creator1 Offers", userOffers2);
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
 });

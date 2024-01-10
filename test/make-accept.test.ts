@@ -7,16 +7,13 @@ import {
   AcceptOfferConfig,
   Lucid,
   toUnit,
-  replacer,
   FetchOfferConfig,
   getOfferUTxOs,
-  PROTOCOL_PAYMENT_KEY,
-  PROTOCOL_STAKE_KEY,
   WithdrawalValidator,
-} from "@anastasia-labs/direct-offer-offchain"
+} from "../src/index.js";
 import { beforeEach, expect, test } from "vitest";
-import spendingValidator from "./directOfferSpending.json";
-import stakingValidator from "./directOfferStaking.json";
+import spendingValidator from "./directOfferSpending.json" assert { type : "json" };
+import stakingValidator from "./directOfferStaking.json" assert { type : "json" };
 
 type LucidContext = {
   lucid: Lucid;
@@ -121,9 +118,9 @@ test<LucidContext>("Test 1 - Make Offer, Accept Offer", async ({
 
   const offers1 = await getOfferUTxOs(lucid, offerConfig);
 
-  console.log("Make Offer");
-  console.log("Available Offers", offers1);
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("Make Offer");
+  // console.log("Available Offers", offers1);
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
 
   const acceptOfferConfig: AcceptOfferConfig = {
     offerOutRef: offers1[0].outRef,
@@ -149,19 +146,19 @@ test<LucidContext>("Test 1 - Make Offer, Accept Offer", async ({
   emulator.awaitBlock(100);
   
   const offers2 = await getOfferUTxOs(lucid, offerConfig);
-  console.log("Accept Offer");
-  console.log("Available Offers", JSON.stringify(offers2, replacer));
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
-  console.log("utxos at buyer1 wallet", await lucid.utxosAt(users.buyer1.address));
-  console.log(
-        "utxos at protocol wallet",
-        await lucid.utxosAt(
-          lucid.utils.credentialToAddress(
-            lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
-            lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
-          )
-        )
-      );
+  // console.log("Accept Offer");
+  // console.log("Available Offers", JSON.stringify(offers2, replacer));
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("utxos at buyer1 wallet", await lucid.utxosAt(users.buyer1.address));
+  // console.log(
+  //       "utxos at protocol wallet",
+  //       await lucid.utxosAt(
+  //         lucid.utils.credentialToAddress(
+  //           lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
+  //           lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
+  //         )
+  //       )
+  //     );
 });
 
 test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
@@ -205,9 +202,9 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
 
   const offers1 = await getOfferUTxOs(lucid, offerConfig);
 
-  console.log("Make Offer");
-  console.log("Available Offers", offers1);
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("Make Offer");
+  // console.log("Available Offers", offers1);
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
 
   const acceptOfferConfig: AcceptOfferConfig = {
     offerOutRef: offers1[0].outRef,
@@ -224,8 +221,8 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
   
   expect(acceptOfferUnsigned1.type).toBe("error");
   if (acceptOfferUnsigned1.type == "error"){
-    console.log("Invalid Accept Offer")
-    console.log(`Failed. Response: ${acceptOfferUnsigned1.error}`)
+    // console.log("Invalid Accept Offer")
+    // console.log(`Failed. Response: ${acceptOfferUnsigned1.error}`)
   }  
 
   emulator.awaitBlock(100);
@@ -262,19 +259,19 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
   
   emulator.awaitBlock(100);
 
-  const offers2 = await getOfferUTxOs(lucid, offerConfig);
-  console.log("Valid Accept Offer");
-  console.log("Available Offers", offers2);
-  console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
-  console.log("utxos at buyer1 wallet", await lucid.utxosAt(users.buyer1.address));
-  console.log("utxos at buyer2 wallet", await lucid.utxosAt(users.buyer2.address));
-  console.log(
-        "utxos at protocol wallet",
-        await lucid.utxosAt(
-          lucid.utils.credentialToAddress(
-            lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
-            lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
-          )
-        )
-    );
+  // const offers2 = await getOfferUTxOs(lucid, offerConfig);
+  // console.log("Valid Accept Offer");
+  // console.log("Available Offers", offers2);
+  // console.log("utxos at creator1 wallet", await lucid.utxosAt(users.creator1.address));
+  // console.log("utxos at buyer1 wallet", await lucid.utxosAt(users.buyer1.address));
+  // console.log("utxos at buyer2 wallet", await lucid.utxosAt(users.buyer2.address));
+  // console.log(
+  //       "utxos at protocol wallet",
+  //       await lucid.utxosAt(
+  //         lucid.utils.credentialToAddress(
+  //           lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
+  //           lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
+  //         )
+  //       )
+  //   );
 });
