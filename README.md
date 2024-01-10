@@ -22,13 +22,13 @@ https://docs.github.com/en/repositories/releasing-projects-on-github/managing-re
 ## Install package
 
 ```
-npm install @anastasia-labs/linear-vesting-offchain
+npm install @anastasia-labs/direct-offer-offchain
 ```
 
 or
 
 ```
-pnpm install @anastasia-labs/linear-vesting-offchain
+pnpm install @anastasia-labs/direct-offer-offchain
 ```
 
 ## References
