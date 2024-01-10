@@ -289,8 +289,8 @@ export function selectUtxos(utxos: UTxO[], minAssets: Assets): Result<UTxO[]> {
     }
   }
 
-  if (selectedUtxos.length == 0) {
-    return { type : "error", error : new Error("Available UTxOs insufficient for required assets") }
+  if (assetsRequired.size > 0) {
+    return { type : "error", error : new Error(`Insufficient funds`) }
   }
 
   return { type: "ok", data : selectedUtxos };
@@ -308,7 +308,7 @@ export function getInputUtxoIndices(indexInputs: UTxO[], remainingInputs: UTxO[]
 
   return indexInputs.flatMap((value) => {
     const index = indicesMap.get(value.txHash + value.outputIndex);
-    if(index)
+    if(index !== undefined)
       return index
     else
       return []
