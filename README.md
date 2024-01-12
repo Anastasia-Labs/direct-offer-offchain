@@ -1,16 +1,18 @@
 # Table of Contents
 
-- [Direct Offer](#direct-offer)
+- [Direct Offer Offchain](#direct-offer-offchain)
   - [Introduction](#introduction)
   - [Documentation](#documentation)
     - [What is P2P trading?](#what-is-peer-to-peer-p2p-trading)
     - [How can this project facilitate P2P trading?](#how-can-this-project-facilitate-p2p-trading)
-  - [Getting Started](#getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Building and Developing](#building-and-developing)
+  - [Usage Example](#usage-example)
+    - [Setup](#setup-lucid--offer-scripts)
+    - [Make Offer](#make-offer)
+    - [Fetch Offer](#fetch-offer)
+    - [Accept Offer](#accept-offer)
   - [License](#license)
 
-# Direct Offer
+# Direct Offer Offchain
 
 ## Introduction
 
@@ -32,7 +34,7 @@ Depending on the type of order you use, effects such as slippage may mean you do
 
 This project fulfills the cornerstone requirement of a trusted Escrow, over seeing the trade in the form of a smart contract. It locks the seller's assets in the contract until a buyer provides the required ask price or the seller wishes to cancel the offer and claim the funds back.
 
-## Getting Started
+## Usage Example
 
 ### Install package
 
@@ -46,15 +48,102 @@ or
 pnpm install @anastasia-labs/direct-offer-offchain
 ```
 
+### Setup Lucid & Offer Scripts
+
+```ts
+// You can get the compiled scripts here: https://github.com/Anastasia-Labs/direct-offer/tree/master/compiled
+import spendingValidator from "../directOfferSpending.json" assert { type : "json" };
+import stakingValidator from "../directOfferStaking.json" assert { type : "json" };
+
+export const lucid = await Lucid.new(
+  new Blockfrost(
+    "https://cardano-preprod.blockfrost.io/api/v0",
+    "your blockfrost api key",
+  ),
+  "Preprod",
+);
+
+lucid.selectWalletFromPrivateKey(
+  "your secret key here e.g. ed25519_...",
+);
+
+const offerScripts = {
+  spending: spendingValidator.cborHex,
+  staking: stakingValidator.cborHex
+};
+```
+
 ### Make Offer
 
 ```ts
-lucid
+import {
+  MakeOfferConfig,
+  makeOffer
+} from "@anastasia-labs/direct-offer-offchain";
 
+const makeOfferConfig: MakeOfferConfig = {
+  offer: {
+    ["lovelace"]: 10_000_000n
+  },
+  toBuy: {
+    [toUnit("e16c2dc8ae937e8d3790c7fd7168d7b994621ba14ca11415f39fed72",
+    "4d494e")]: 10_000n,
+  },
+  scripts: offerScripts,
+};
+
+const makeOfferUnSigned = await makeOffer(lucid, makeOfferConfig);
+
+if (makeOfferUnSigned.type == "ok") {
+  const makeOfferSigned = await makeOfferUnSigned.data.sign().complete();
+  const makeOfferHash = await makeOfferSigned.submit();
+  await lucid.awaitTx(makeOfferHash);
+  console.log(`Made offer: ${makeOfferHash}`)
+}
 ```
 
+### Fetch Offer
 
-## License
+```ts
+import {
+  FetchOfferConfig,
+  getOfferUTxOs
+} from "@anastasia-labs/direct-offer-offchain";
+
+const offerConfig: FetchOfferConfig = {
+  scripts: offerScripts
+};
+
+const offers = await getOfferUTxOs(lucid, offerConfig);
+console.log("Available Offers", offers);
+```
+
+### Accept Offer
+
+```ts
+import {
+  AcceptOfferConfig,
+  acceptOffer
+} from "@anastasia-labs/direct-offer-offchain";
+
+const acceptOfferConfig: AcceptOfferConfig = {
+  offerOutRef: offers[0].outRef,
+  scripts: offerScripts
+};
+
+const acceptOfferUnsigned = await acceptOffer(lucid, acceptOfferConfig);
+
+if (acceptOfferUnsigned.type == "ok"){
+  const acceptOfferSigned = await acceptOfferUnsigned.data
+  .sign()
+  .complete();
+  const acceptOfferSignedHash = await acceptOfferSigned.submit();
+  await lucid.awaitTx(acceptOfferSignedHash);
+  console.log(`Accepted offer: ${acceptOfferSignedHash}`)
+}
+```
+
+## Licenses
 
 © 2023 Anastasia Labs.
 
