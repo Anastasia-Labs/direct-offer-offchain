@@ -56,11 +56,11 @@ import spendingValidator from "../directOfferSpending.json" assert { type : "jso
 import stakingValidator from "../directOfferStaking.json" assert { type : "json" };
 
 export const lucid = await Lucid.new(
-  new Blockfrost(
-    "https://cardano-preprod.blockfrost.io/api/v0",
-    "your blockfrost api key",
-  ),
-  "Preprod",
+  new Maestro({
+    network : "Preprod",
+    apiKey: "your maestro api key",
+  }),
+  "Preprod"
 );
 
 lucid.selectWalletFromPrivateKey(
