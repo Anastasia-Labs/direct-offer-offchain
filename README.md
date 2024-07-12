@@ -10,7 +10,9 @@
     - [Make Offer](#make-offer)
     - [Fetch Offer](#fetch-offer)
     - [Accept Offer](#accept-offer)
-  - [License](#license)
+  - [Local Build](#local-build)
+  - [Test Framework](#test-framework)
+  - [Running Tests](#running-tests)
 
 # Direct Offer Offchain
 
@@ -143,9 +145,22 @@ if (acceptOfferUnsigned.type == "ok"){
 }
 ```
 
-## Licenses
+## Local Build
 
-© 2023 Anastasia Labs.
+In the main directory
 
-All code is licensed under MIT License. See [LICENSE](./LICENSE) file
-for details.
+```
+pnpm run build
+```
+## Test framework
+
+https://github.com/vitest-dev/vitest
+
+
+## Running Tests
+
+```sh
+pnpm test
+```
+
+![direct-offer-offchain](/assets/gifs/direct-offer-offchain.gif)
