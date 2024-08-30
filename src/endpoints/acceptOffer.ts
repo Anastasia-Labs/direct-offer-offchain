@@ -1,21 +1,25 @@
 import {
   Data,
-  Lucid,
-  TxComplete,
+  LucidEvolution,
+  TxSignBuilder,
   Constr,
   paymentCredentialOf,
   Assets,
-  addAssets
-} from "@anastasia-labs/lucid-cardano-fork";
+  addAssets,
+  credentialToAddress,
+  keyHashToCredential
+} from "@lucid-evolution/lucid";
 import { parseSafeDatum, toAddress, toAssets, selectUtxos, getInputUtxoIndices, sumUtxoAssets, remove, getOfferValidators } from "../core/utils/index.js";
 import { Result, AcceptOfferConfig } from "../core/types.js";
 import { OfferDatum } from "../core/contract.types.js";
 import { PROTOCOL_PAYMENT_KEY, PROTOCOL_STAKE_KEY } from "../index.js";
 
 export const acceptOffer = async (
-  lucid: Lucid,
+  lucid: LucidEvolution,
   config: AcceptOfferConfig
-): Promise<Result<TxComplete>> => {
+): Promise<Result<TxSignBuilder>> => {
+  const network = lucid.config().network;
+
   const validators = getOfferValidators(lucid, config.scripts);
   
   const offerUTxO = (await lucid.utxosByOutRef([config.offerOutRef]))[0];
@@ -26,11 +30,11 @@ export const acceptOffer = async (
   if (!offerUTxO.datum)
     return { type: "error", error: new Error("Missing Datum") };
 
-  const datum = parseSafeDatum(lucid, offerUTxO.datum, OfferDatum);
+  const datum = parseSafeDatum(offerUTxO.datum, OfferDatum);
   if (datum.type == "left")
     return { type: "error", error: new Error(datum.value) };
 
-  const ownAddress = await lucid.wallet.address();
+  const ownAddress = await lucid.wallet().address();
   const ownHash = paymentCredentialOf(ownAddress).hash;
 
   const correctUTxO = "PublicKeyCredential" in datum.value.creator.paymentCredential 
@@ -42,7 +46,7 @@ export const acceptOffer = async (
   // add min ADA deposit cost which is refunded later
   toBuy["lovelace"] = (toBuy["lovelace"] || 0n) + 2_000_000n;
   
-  const walletUTxOs = await lucid.wallet.getUtxos();
+  const walletUTxOs = await lucid.wallet().getUtxos();
 
   // initialize with clone of toBuy
   const requiredAssets: Assets = { ...toBuy } 
@@ -70,18 +74,19 @@ export const acceptOffer = async (
     const tx = await lucid.newTx()
       .collectFrom([offerUTxO], PExecuteOfferRedeemer)
       .collectFrom(selectedUtxos.data)                  // spend selected wallet utxos as inputs
-      .payToAddress(toAddress(datum.value.creator, lucid), toBuy)
-      .payToAddress(ownAddress, addAssets(offerUTxO.assets, balanceAssets))                 
+      .pay.ToAddress(toAddress(datum.value.creator, network), toBuy)
+      .pay.ToAddress(ownAddress, addAssets(offerUTxO.assets, balanceAssets))                 
       .withdraw(validators.rewardAddress, 0n, PGlobalRedeemer)
-      .payToAddress(
-        lucid.utils.credentialToAddress(
-          lucid.utils.keyHashToCredential(PROTOCOL_PAYMENT_KEY),
-          lucid.utils.keyHashToCredential(PROTOCOL_STAKE_KEY)
+      .pay.ToAddress(
+        credentialToAddress(
+          network,
+          keyHashToCredential(PROTOCOL_PAYMENT_KEY),
+          keyHashToCredential(PROTOCOL_STAKE_KEY)
         ),
         { ["lovelace"]: 4_000_000n } // protocol fees of 4 ADA (creator and buyer pay 2 ADA each)
       )
-      .attachSpendingValidator(validators.directOfferVal)
-      .attachWithdrawalValidator(validators.stakingVal)
+      .attach.SpendingValidator(validators.directOfferVal)
+      .attach.WithdrawalValidator(validators.stakingVal)
       .complete({coinSelection: false});
 
     return { type: "ok", data: tx };  

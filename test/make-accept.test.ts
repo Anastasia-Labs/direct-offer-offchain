@@ -1,6 +1,6 @@
 import {
   Emulator,
-  generateAccountSeedPhrase,
+  generateEmulatorAccount,
   makeOffer,
   acceptOffer,
   MakeOfferConfig,
@@ -10,13 +10,15 @@ import {
   FetchOfferConfig,
   getOfferUTxOs,
   WithdrawalValidator,
+  LucidEvolution,
+  validatorToRewardAddress,
 } from "../src/index.js";
 import { beforeEach, expect, test } from "vitest";
 import spendingValidator from "./directOfferSpending.json" assert { type : "json" };
 import stakingValidator from "./directOfferStaking.json" assert { type : "json" };
 
 type LucidContext = {
-  lucid: Lucid;
+  lucid: LucidEvolution;
   users: any;
   emulator: Emulator;
 };
@@ -39,17 +41,17 @@ const token3 = toUnit(
 // INITIALIZE EMULATOR + ACCOUNTS
 beforeEach<LucidContext>(async (context) => {
   context.users = {
-    creator1: await generateAccountSeedPhrase({
+    creator1: await generateEmulatorAccount({
       lovelace: BigInt(100_000_000),
-      [token1]: 100n
+      [token1]: BigInt(100)
     }),
-    buyer1: await generateAccountSeedPhrase({
+    buyer1: await generateEmulatorAccount({
       lovelace: BigInt(100_000_000),
     }),
-    buyer2: await generateAccountSeedPhrase({
+    buyer2: await generateEmulatorAccount({
       lovelace: BigInt(100_000_000),
-      [token2]: 1n,
-      [token3]: 100n
+      [token2]: BigInt(1),
+      [token3]: BigInt(100)
     }),
   };
 
@@ -59,22 +61,22 @@ beforeEach<LucidContext>(async (context) => {
     context.users.buyer2,
   ]);
 
-  context.lucid = await Lucid.new(context.emulator);
+  context.lucid = await Lucid(context.emulator, "Custom");
 });
 
-async function registerRewardAddress(lucid: Lucid): Promise<void> {
+async function registerRewardAddress(lucid: LucidEvolution): Promise<void> {
   const stakingVal : WithdrawalValidator = {
     type: "PlutusV2",
     script: stakingValidator.cborHex
   }
 
-  const rewardAddress = lucid.utils.validatorToRewardAddress(stakingVal);
+  const rewardAddress = validatorToRewardAddress("Custom", stakingVal);
 
   const tx = await lucid
     .newTx()
     .registerStake(rewardAddress)
     .complete();
-  const signedTx = await tx.sign().complete();
+  const signedTx = await tx.sign.withWallet().complete();
   await signedTx.submit();
 }
 
@@ -91,21 +93,21 @@ test<LucidContext>("Test 1 - Make Offer, Accept Offer", async ({
   // Make Offer
   const makeOfferConfig: MakeOfferConfig = {
     offer: {
-      [token1]: 50n
+      [token1]: BigInt(50)
     },
     toBuy: {
-      ["lovelace"]: 50_000_000n,
+      ["lovelace"]: BigInt(50_000_000),
     },
     scripts: offerScripts,
   };
 
-  lucid.selectWalletFromSeed(users.creator1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.creator1.seedPhrase);
 
   const makeOfferUnSigned = await makeOffer(lucid, makeOfferConfig);
-  
+
   expect(makeOfferUnSigned.type).toBe("ok");
   if (makeOfferUnSigned.type == "ok") {
-    const makeOfferSigned = await makeOfferUnSigned.data.sign().complete();
+    const makeOfferSigned = await makeOfferUnSigned.data.sign.withWallet().complete();
     const makeOfferHash = await makeOfferSigned.submit();
   }
 
@@ -131,14 +133,14 @@ test<LucidContext>("Test 1 - Make Offer, Accept Offer", async ({
   await registerRewardAddress(lucid);
 
   // Accept Offer
-  lucid.selectWalletFromSeed(users.buyer1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.buyer1.seedPhrase);
 
   const acceptOfferUnsigned1 = await acceptOffer(lucid, acceptOfferConfig);
   
   expect(acceptOfferUnsigned1.type).toBe("ok");
   if (acceptOfferUnsigned1.type == "ok"){
     const acceptOfferSigned1 = await acceptOfferUnsigned1.data
-    .sign()
+    .sign.withWallet()
     .complete();
     const acceptOfferSignedHash1 = await acceptOfferSigned1.submit();
   }  
@@ -174,22 +176,22 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
   // Make Offer
   const makeOfferConfig: MakeOfferConfig = {
     offer: {
-      [token1]: 50n
+      [token1]: BigInt(50)
     },
     toBuy: {
-      [token2]: 1n,
-      [token3]: 33n
+      [token2]: BigInt(1),
+      [token3]: BigInt(33)
     },
     scripts: offerScripts,
   };
 
-  lucid.selectWalletFromSeed(users.creator1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.creator1.seedPhrase);
 
   const makeOfferUnSigned = await makeOffer(lucid, makeOfferConfig);
   
   expect(makeOfferUnSigned.type).toBe("ok");
   if (makeOfferUnSigned.type == "ok") {
-    const makeOfferSigned = await makeOfferUnSigned.data.sign().complete();
+    const makeOfferSigned = await makeOfferUnSigned.data.sign.withWallet().complete();
     const makeOfferHash = await makeOfferSigned.submit();
   }
 
@@ -215,7 +217,7 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
   await registerRewardAddress(lucid);
 
   // Invalid Accept Offer
-  lucid.selectWalletFromSeed(users.buyer1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.buyer1.seedPhrase);
 
   const acceptOfferUnsigned1 = await acceptOffer(lucid, acceptOfferConfig);
   
@@ -228,22 +230,22 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
   emulator.awaitBlock(100);
 
   // Valid Accept Offer
-  lucid.selectWalletFromSeed(users.buyer2.seedPhrase);
+  lucid.selectWallet.fromSeed(users.buyer2.seedPhrase);
 
   // fragment buyer2 utxo to test manual coin selection
   const buyer2Addr = users.buyer2.address;
 
   const fragmentTx = await lucid
     .newTx()
-    .payToAddress(buyer2Addr, {["lovelace"]: 10_000_000n})
-    .payToAddress(buyer2Addr, {[token3]: 10n})
-    .payToAddress(buyer2Addr, {[token2]: 1n, [token3]: 5n})
-    .payToAddress(buyer2Addr, {["lovelace"]: 50_000_000n})
-    .payToAddress(buyer2Addr, {[token3]: 10n, ["lovelace"]: 20_000_000n})
-    .payToAddress(buyer2Addr, {["lovelace"]: 5_000_000n})
-    .payToAddress(buyer2Addr, {[token3]: 10n})
+    .pay.ToAddress(buyer2Addr, {["lovelace"]: BigInt(10_000_000)})
+    .pay.ToAddress(buyer2Addr, {[token3]: BigInt(10)})
+    .pay.ToAddress(buyer2Addr, {[token2]: BigInt(1), [token3]: BigInt(5)})
+    .pay.ToAddress(buyer2Addr, {["lovelace"]: BigInt(50_000_000)})
+    .pay.ToAddress(buyer2Addr, {[token3]: BigInt(10), ["lovelace"]: BigInt(20_000_000)})
+    .pay.ToAddress(buyer2Addr, {["lovelace"]: BigInt(5_000_000)})
+    .pay.ToAddress(buyer2Addr, {[token3]: BigInt(10)})
     .complete();    
-  const fragmentTxSigned = await fragmentTx.sign().complete();
+  const fragmentTxSigned = await fragmentTx.sign.withWallet().complete();
   await fragmentTxSigned.submit();
   
   emulator.awaitBlock(100);
@@ -253,7 +255,7 @@ test<LucidContext>("Test 2 - Make Offer, Accept Offer", async ({
 
   expect(acceptOfferUnsigned2.type).toBe("ok");
   if (acceptOfferUnsigned2.type == "ok"){
-    const acceptOfferSigned2 = await acceptOfferUnsigned2.data.sign().complete();
+    const acceptOfferSigned2 = await acceptOfferUnsigned2.data.sign.withWallet().complete();
     const acceptOfferSignedHash2 = await acceptOfferSigned2.submit();
   }
   

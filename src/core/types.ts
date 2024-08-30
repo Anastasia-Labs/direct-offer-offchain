@@ -1,4 +1,4 @@
-import { Address, Assets, OutRef, Script, UTxO } from "@anastasia-labs/lucid-cardano-fork"
+import { Address, Assets, OutRef, Script, UTxO } from "@lucid-evolution/lucid";
 import { Value } from "./contract.types.js";
 
 export type CborHex = string;

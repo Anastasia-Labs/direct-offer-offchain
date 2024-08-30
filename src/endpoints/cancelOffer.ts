@@ -1,18 +1,18 @@
 import {
   Data,
-  Lucid,
-  TxComplete,
+  LucidEvolution,
+  TxSignBuilder,
   Constr,
-  paymentCredentialOf} from "@anastasia-labs/lucid-cardano-fork";
+  paymentCredentialOf} from "@lucid-evolution/lucid";
 import { parseSafeDatum, getOfferValidators } from "../core/utils/index.js";
 import { Result, CancelOfferConfig } from "../core/types.js";
 import { OfferDatum } from "../core/contract.types.js";
 
 
 export const cancelOffer = async (
-  lucid: Lucid,
+  lucid: LucidEvolution,
   config: CancelOfferConfig
-): Promise<Result<TxComplete>> => {
+): Promise<Result<TxSignBuilder>> => {
   const validators = getOfferValidators(lucid, config.scripts);
   
   const offerUTxO = (await lucid.utxosByOutRef([config.offerOutRef]))[0];
@@ -23,11 +23,12 @@ export const cancelOffer = async (
   if (!offerUTxO.datum)
     return { type: "error", error: new Error("Missing Datum") };
 
-  const datum = parseSafeDatum(lucid, offerUTxO.datum, OfferDatum);
+  const datum = parseSafeDatum(offerUTxO.datum, OfferDatum);
   if (datum.type == "left")
     return { type: "error", error: new Error(datum.value) };
 
-  const ownHash = paymentCredentialOf(await lucid.wallet.address()).hash;
+  const ownAddress = await lucid.wallet().address();
+  const ownHash = paymentCredentialOf(ownAddress).hash;
 
   const correctUTxO = "PublicKeyCredential" in datum.value.creator.paymentCredential 
     && (datum.value.creator.paymentCredential.PublicKeyCredential[0] == ownHash)
@@ -39,8 +40,8 @@ export const cancelOffer = async (
 
     const tx = await lucid.newTx()
       .collectFrom([offerUTxO], PReclaimRedeemer)
-      .addSignerKey(ownHash)
-      .attachSpendingValidator(validators.directOfferVal)
+      .addSigner(ownAddress)
+      .attach.SpendingValidator(validators.directOfferVal)
       .complete();
     return { type: "ok", data: tx };  
   } catch (error) {

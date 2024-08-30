@@ -1,6 +1,6 @@
 import {
   Emulator,
-  generateAccountSeedPhrase,
+  generateEmulatorAccount,
   userOfferUTxOs,
   makeOffer,
   cancelOffer,
@@ -9,13 +9,14 @@ import {
   CancelOfferConfig,
   Lucid,
   toUnit,
+  LucidEvolution,
 } from "../src/index.js";
 import { beforeEach, expect, test } from "vitest";
 import spendingValidator from "./directOfferSpending.json" assert { type : "json" };
 import stakingValidator from "./directOfferStaking.json" assert { type : "json" };
 
 type LucidContext = {
-  lucid: Lucid;
+  lucid: LucidEvolution;
   users: any;
   emulator: Emulator;
 };
@@ -23,10 +24,10 @@ type LucidContext = {
 //NOTE: INITIALIZE EMULATOR + ACCOUNTS
 beforeEach<LucidContext>(async (context) => {
   context.users = {
-    creator1: await generateAccountSeedPhrase({
+    creator1: generateEmulatorAccount({
       lovelace: BigInt(100_000_000),
     }),
-    creator2: await generateAccountSeedPhrase({
+    creator2: generateEmulatorAccount({
       lovelace: BigInt(100_000_000),
     }),
   };
@@ -36,7 +37,7 @@ beforeEach<LucidContext>(async (context) => {
     context.users.creator2,
   ]);
 
-  context.lucid = await Lucid.new(context.emulator);
+  context.lucid = await Lucid(context.emulator, "Custom");
 });
 
 test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
@@ -51,18 +52,20 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
 
   const makeOfferConfig: MakeOfferConfig = {
     offer: {
-      ["lovelace"] : 10_000_000n
+      ["lovelace"] : BigInt(10_000_000)
     },
     toBuy: {
       [toUnit(
         "2c04fa26b36a376440b0615a7cdf1a0c2df061df89c8c055e2650505",
         "63425443"
-      )]: 5n,
+      )]: BigInt(5),
     },
     scripts: offerScripts,
   };
 
-  lucid.selectWalletFromSeed(users.creator1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.creator1.seedPhrase);
+  emulator.awaitBlock(50);
+  const x = await lucid.wallet().getUtxos();
 
   // NOTE: Make Offer 1
   const makeOfferUnSigned = await makeOffer(lucid, makeOfferConfig);
@@ -70,7 +73,7 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
   expect(makeOfferUnSigned.type).toBe("ok");
   if (makeOfferUnSigned.type == "ok") {
     // console.log(tx.data.txComplete.to_json())
-    const makeOfferSigned = await makeOfferUnSigned.data.sign().complete();
+    const makeOfferSigned = await makeOfferUnSigned.data.sign.withWallet().complete();
     const makeOfferHash = await makeOfferSigned.submit();
     // console.log(makeOfferHash)
   }
@@ -95,7 +98,7 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
   };
 
   // NOTE: Invalid Cancel Offer 1
-  lucid.selectWalletFromSeed(users.creator2.seedPhrase);
+  lucid.selectWallet.fromSeed(users.creator2.seedPhrase);
   const invalidCancelOffer = await cancelOffer(lucid, cancelOfferConfig);
 
   expect(invalidCancelOffer.type).toBe("error");
@@ -106,15 +109,15 @@ test<LucidContext>("Test - Make Offer, Cancel Offer", async ({
   // console.log(`Failed. Response: ${invalidCancelOffer.error}`);
 
   // NOTE: Valid Cancel Offer 1
-  lucid.selectWalletFromSeed(users.creator1.seedPhrase);
+  lucid.selectWallet.fromSeed(users.creator1.seedPhrase);
   const cancelOfferUnsigned1 = await cancelOffer(lucid, cancelOfferConfig);
 
-  // console.log(cancelOfferUnsigned1);
+  // console.log("CANCEL OFFER", cancelOfferUnsigned1);
   expect(cancelOfferUnsigned1.type).toBe("ok");
 
   if (cancelOfferUnsigned1.type == "error") return;
   const cancelOfferSigned1 = await cancelOfferUnsigned1.data
-    .sign()
+    .sign.withWallet()
     .complete();
   const cancelOfferSignedHash1 = await cancelOfferSigned1.submit();
 
