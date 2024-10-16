@@ -20,6 +20,8 @@ import {
 } from "@lucid-evolution/lucid";
 import { AddressD, Value } from "../contract.types.js";
 import { Either, ReadableUTxO, Result } from "../types.js";
+import { Effect, pipe } from "effect";
+import { UnknownException } from "effect/Cause";
 
 export function ok<T>(x: T): Result<T> {
   return {
@@ -28,79 +30,92 @@ export function ok<T>(x: T): Result<T> {
   };
 }
 
-export const utxosAtScript = async (
+export const utxosAtScript = (
   lucid: LucidEvolution,
   script: string,
   stakeCredentialHash?: string
-) => {
-  const network = lucid.config().network;
+): Effect.Effect<UTxO[], UnknownException, never> =>
+  Effect.gen(function* () {
+    const network = lucid.config().network;
 
-  const scriptValidator: SpendingValidator = {
-    type: "PlutusV2",
-    script: script,
-  };
+    const scriptValidator: SpendingValidator = {
+      type: "PlutusV2",
+      script: script,
+    };
 
-  const scriptValidatorAddr = stakeCredentialHash
-    ? validatorToAddress(
-        network,
-        scriptValidator,
-        keyHashToCredential(stakeCredentialHash)
-      )
-    : validatorToAddress(network, scriptValidator);
+    const scriptValidatorAddr = stakeCredentialHash
+      ? validatorToAddress(
+          network,
+          scriptValidator,
+          keyHashToCredential(stakeCredentialHash)
+        )
+      : validatorToAddress(network, scriptValidator);
 
-  return lucid.utxosAt(scriptValidatorAddr);
-};
+    return yield* Effect.tryPromise(() => lucid.utxosAt(scriptValidatorAddr));
+  });
 
 export const parseSafeDatum = <T>(
   datum: string | null | undefined,
   datumType: T
-): Either<string, T> => {
-  if (datum) {
-    try {
-      const parsedDatum = Data.from(datum, datumType);
-      return {
-        type: "right",
-        value: parsedDatum,
-      };
-    } catch (error) {
-      return { type: "left", value: `invalid datum : ${error}` };
-    }
-  } else {
-    return { type: "left", value: "missing datum" };
-  }
-};
+): Effect.Effect<T, UnknownException, never> =>
+  Effect.gen(function* () {
+    if (!datum)
+      yield* Effect.fail<UnknownException>(
+        new UnknownException(new Error("missing datum"))
+      );
+    const parsedDatum = yield* Effect.try<T, UnknownException>({
+      try: () => Data.from(datum!, datumType),
+      catch: (error) => new UnknownException(error, "invalid datum"),
+    });
+    return parsedDatum;
+  });
 
-export const parseUTxOsAtScript = async <T>(
+export const parseUTxOsAtScript = <T>(
   lucid: LucidEvolution,
   script: string,
   datumType: T,
   stakeCredentialHash?: string
-): Promise<ReadableUTxO<T>[]> => {
-  try {
-    const utxos = await utxosAtScript(
-      lucid,
-      script,
-      stakeCredentialHash
-    );
-    return utxos.flatMap((utxo) => {
-      const result = parseSafeDatum<T>(utxo.datum, datumType);
-      if (result.type == "right") {
-        return {
+) =>
+  pipe(
+    utxosAtScript(lucid, script, stakeCredentialHash),
+    Effect.flatMap((utxos): Effect.Effect<ReadableUTxO<T>, UnknownException> =>
+      pipe(
+        Effect.all(
+          utxos.map((utxo) => parseSafeDatum<T>(utxo.datum, datumType))
+        ),
+        Effect.map((parsed) => ({
           outRef: {
             txHash: utxo.txHash,
             outputIndex: utxo.outputIndex,
           },
-          datum: result.value,
+          datum: parsed,
           assets: utxo.assets,
-        };
-      } else {
-        return [];
-      }
-    });
-  } catch (e) {
-    return [];
-  }
-};
+        }))
+      )
+    )
+  );
+//   pipe(
+//     utxosAtScript(lucid, script, stakeCredentialHash),
+//     Effect.map((utxos: UTxO[]) => pipe(
+//       utxos,
+//       Effect.flatMap(
+//         (utxo: UTxO): Effect.Effect<ReadableUTxO<T>, UnknownException, never> =>
+//           parseSafeDatum<T>(utxo.datum, datumType).pipe(
+//             Effect.map(
+//               (parsed) =>
+//                 ({
+//                   outRef: {
+//                     txHash: utxo.txHash,
+//                     outputIndex: utxo.outputIndex,
+//                   },
+//                   datum: parsed,
+//                   assets: utxo.assets,
+//                 } as ReadableUTxO<T>)
+//             )
+//           )
+//       ))
+//     )
+//   );
 
 export const toCBORHex = (rawHex: string) => {
   return applyDoubleCborEncoding(rawHex);
